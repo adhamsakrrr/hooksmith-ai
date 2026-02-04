@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Loader2, Copy, Check } from 'lucide-react';
+import { Loader2, Copy, Check, Twitter, Linkedin, Hash, Sparkles } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export default function HookGenerator() {
@@ -25,7 +25,6 @@ export default function HookGenerator() {
 
             if (!response.ok) throw new Error('Failed to generate');
 
-            // stream reading logic
             const reader = response.body?.getReader();
             const decoder = new TextDecoder();
             let result = '';
@@ -33,25 +32,13 @@ export default function HookGenerator() {
             while (true) {
                 const { done, value } = await reader!.read();
                 if (done) break;
-                const chunk = decoder.decode(value, { stream: true });
-                result += chunk;
-                // In a real stream, we'd parse partially, but for JSON array, we likely wait for full.
-                // However, to make it "magical", we should try to parse or show progress.
-                // Given the prompt returns a JSON ARRAY, streaming parsing is tricky without a library.
-                // For MVP, we'll accumulate and then parse. 
-                // OPTIMIZATION: We could prompt for newline separated strings to stream line-by-line.
-                // But let's just wait for full response for V1 safely.
+                result += decoder.decode(value, { stream: true });
             }
 
             try {
-                // AI sometimes wraps in markdown ```json ... ```
                 const cleanResult = result.replace(/```json/g, '').replace(/```/g, '').trim();
                 const parsed = JSON.parse(cleanResult);
-                if (Array.isArray(parsed)) {
-                    setHooks(parsed);
-                } else {
-                    setHooks([result]); // Fallback
-                }
+                setHooks(Array.isArray(parsed) ? parsed : [result]);
             } catch (e) {
                 console.error("JSON Parse error", e);
                 setHooks(result.split('\n').filter(line => line.length > 5));
@@ -70,67 +57,98 @@ export default function HookGenerator() {
         setTimeout(() => setCopiedIndex(null), 2000);
     };
 
-    return (
-        <div className="w-full max-w-2xl mx-auto space-y-8">
-            <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 shadow-2xl">
-                <div className="space-y-4">
-                    <div>
-                        <label className="block text-sm font-medium text-gray-400 mb-1">Topic</label>
-                        <input
-                            type="text"
-                            value={topic}
-                            onChange={(e) => setTopic(e.target.value)}
-                            placeholder="e.g. AI Tools, Remote Work, Healthy Eating"
-                            className="w-full bg-black border border-gray-700 rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition"
-                            onKeyDown={(e) => e.key === 'Enter' && generateHooks()}
-                        />
-                    </div>
+    const platforms = [
+        { id: 'twitter', icon: Twitter, label: 'Twitter / X' },
+        { id: 'linkedin', icon: Linkedin, label: 'LinkedIn' },
+        { id: 'tiktok', icon: Hash, label: 'TikTok / Shorts' },
+    ];
 
-                    <div>
-                        <label className="block text-sm font-medium text-gray-400 mb-1">Platform</label>
+    return (
+        <div className="w-full max-w-3xl mx-auto space-y-8">
+            {/* Input Section */}
+            <motion.div
+                initial={{ y: 20, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                className="bg-gray-900/40 backdrop-blur-xl border border-gray-800 rounded-3xl p-1 shadow-2xl overflow-hidden"
+            >
+                <div className="p-6 md:p-8 space-y-6">
+                    <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                            <label className="text-sm font-medium text-gray-400 uppercase tracking-wider">Target Platform</label>
+                        </div>
                         <div className="flex gap-2">
-                            {['twitter', 'linkedin', 'tiktok'].map((p) => (
-                                <button
-                                    key={p}
-                                    onClick={() => setPlatform(p)}
-                                    className={`px-4 py-2 rounded-lg text-sm font-medium transition ${platform === p
-                                            ? 'bg-purple-600 text-white'
-                                            : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
-                                        }`}
-                                >
-                                    {p.charAt(0).toUpperCase() + p.slice(1)}
-                                </button>
-                            ))}
+                            {platforms.map((p) => {
+                                const Icon = p.icon;
+                                return (
+                                    <button
+                                        key={p.id}
+                                        onClick={() => setPlatform(p.id)}
+                                        className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-300 ${platform === p.id
+                                                ? 'bg-purple-600 text-white shadow-lg shadow-purple-500/20'
+                                                : 'bg-gray-800/50 text-gray-400 hover:bg-gray-800 hover:text-gray-200'
+                                            }`}
+                                    >
+                                        <Icon size={18} />
+                                        <span className="hidden sm:inline">{p.label}</span>
+                                    </button>
+                                )
+                            })}
                         </div>
                     </div>
 
-                    <button
-                        onClick={generateHooks}
-                        disabled={loading || !topic}
-                        className="w-full bg-white text-black font-bold py-4 rounded-xl hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center justify-center gap-2"
-                    >
-                        {loading ? <Loader2 className="animate-spin" /> : 'Generate Viral Hooks'}
-                    </button>
+                    <div className="space-y-4">
+                        <label className="text-sm font-medium text-gray-400 uppercase tracking-wider">What's your content about?</label>
+                        <div className="relative group">
+                            <input
+                                type="text"
+                                value={topic}
+                                onChange={(e) => setTopic(e.target.value)}
+                                placeholder="e.g. Remote Work, AI Tools, Vegan Diet..."
+                                className="w-full bg-black/50 border border-gray-700 rounded-2xl px-6 py-5 text-lg text-white placeholder-gray-600 focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500 outline-none transition-all group-hover:border-gray-600"
+                                onKeyDown={(e) => e.key === 'Enter' && generateHooks()}
+                            />
+                            <motion.button
+                                whileHover={{ scale: 1.02 }}
+                                whileTap={{ scale: 0.98 }}
+                                onClick={generateHooks}
+                                disabled={loading || !topic}
+                                className="absolute right-2 top-2 bottom-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white px-6 rounded-xl font-bold hover:shadow-lg hover:shadow-purple-500/30 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-2"
+                            >
+                                {loading ? <Loader2 className="animate-spin" /> : <><Sparkles size={18} /> Generate</>}
+                            </motion.button>
+                        </div>
+                    </div>
                 </div>
-            </div>
+            </motion.div>
 
+            {/* Results Section */}
             <div className="space-y-4">
-                <AnimatePresence>
+                <AnimatePresence mode="popLayout">
                     {hooks.map((hook, index) => (
                         <motion.div
-                            key={index}
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
+                            key={`${hook}-${index}`}
+                            initial={{ opacity: 0, y: 20, scale: 0.95 }}
+                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.95 }}
                             transition={{ duration: 0.3, delay: index * 0.05 }}
-                            className="bg-gray-900/50 border border-gray-800 rounded-xl p-5 flex items-start justify-between group hover:border-gray-700 transition"
+                            className="group relative bg-[#0F0F0F] border border-gray-800 hover:border-gray-700 rounded-2xl p-6 transition-all duration-300 hover:shadow-xl hover:shadow-purple-500/5"
                         >
-                            <p className="text-gray-200 leading-relaxed">{hook}</p>
-                            <button
-                                onClick={() => copyToClipboard(hook, index)}
-                                className="ml-4 p-2 text-gray-500 hover:text-white transition rounded-lg hover:bg-gray-800"
-                            >
-                                {copiedIndex === index ? <Check size={18} className="text-green-400" /> : <Copy size={18} />}
-                            </button>
+                            <p className="text-gray-200 text-lg leading-relaxed font-light">{hook}</p>
+
+                            <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <button
+                                    onClick={() => copyToClipboard(hook, index)}
+                                    className="p-2 text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg transition-colors"
+                                >
+                                    {copiedIndex === index ? (
+                                        <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }}>
+                                            <Check size={18} className="text-green-400" />
+                                        </motion.div>
+                                    ) : (
+                                        <Copy size={18} />
+                                    )}
+                                </button>
+                            </div>
                         </motion.div>
                     ))}
                 </AnimatePresence>
